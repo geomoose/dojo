@@ -91,14 +91,6 @@ if(dojo.isIE){
 //>>excludeEnd("webkitMobile");
 	var byId = d.byId;
 
-	var _destroyContainer = null,
-		_destroyDoc;
-	//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-	d.addOnWindowUnload(function(){
-		_destroyContainer = null; //prevent IE leak
-	});
-	//>>excludeEnd("webkitMobile");
-
 /*=====
 	dojo._destroyElement = function(node){
 		// summary:
@@ -106,6 +98,19 @@ if(dojo.isIE){
 		// 		in 2.0
 	}
 =====*/
+	function _destroy(/*DomNode*/ node, /*DomNode*/ parent){
+		if(node.firstChild){
+			_empty(node);
+		}
+		if(parent){
+//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
+			// removeNode(false) doesn't leak in IE 6+, but removeChild() and removeNode(true) are known to leak under IE 8- while 9+ is TBD
+			d.isIE && parent.canHaveChildren && 'removeNode' in node ? node.removeNode(false) :
+//>>excludeEnd("webkitMobile");
+				parent.removeChild(node);
+		}
+	}
+
 	dojo._destroyElement = dojo.destroy = function(/*String|DomNode*/node){
 		//	summary:
 		//		Removes a node from its parent, clobbering it and all of its
@@ -127,19 +132,8 @@ if(dojo.isIE){
 		//	|	dojo.query(".someNode").forEach(dojo.destroy);
 
 		node = byId(node);
-		try{
-			var doc = node.ownerDocument;
-			// cannot use _destroyContainer.ownerDocument since this can throw an exception on IE
-			if(!_destroyContainer || _destroyDoc != doc){
-				_destroyContainer = doc.createElement("div");
-				_destroyDoc = doc;
-			}
-			_destroyContainer.appendChild(node.parentNode ? node.parentNode.removeChild(node) : node);
-			// NOTE: see http://trac.dojotoolkit.org/ticket/2931. This may be a bug and not a feature
-			_destroyContainer.innerHTML = "";
-		}catch(e){
-			/* squelch */
-		}
+		if(!node){ return; }
+		_destroy(node, node.parentNode);
 	};
 
 	dojo.isDescendant = function(/*DomNode|String*/node, /*DomNode|String*/ancestor){
@@ -391,7 +385,7 @@ if(dojo.isIE){
 			return s || {};
 		};
 	//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-	}else if(d.isIE){
+	}else if(d.isIE && (d.isIE < 9 || d.isQuirks)){
 		gcs = function(node){
 			// IE (as of 7) doesn't expose Element like sane browsers
 			return node.nodeType == 1 /* ELEMENT_NODE*/ ? node.currentStyle : {};
@@ -472,7 +466,7 @@ if(dojo.isIE){
 	//>>excludeEnd("webkitMobile");
 	dojo._getOpacity =
 	//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-		d.isIE < 9 ? function(node){
+		d.isIE < 9 || (d.isIE < 10 && d.isQuirks) ? function(node){
 			try{
 				return af(node).Opacity / 100; // Number
 			}catch(e){
@@ -501,7 +495,7 @@ if(dojo.isIE){
 
 	dojo._setOpacity =
 		//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-		d.isIE < 9 ? function(/*DomNode*/node, /*Number*/opacity){
+		d.isIE < 9 || (d.isIE < 10 && d.isQuirks) ? function(/*DomNode*/node, /*Number*/opacity){
 			var ov = opacity * 100, opaque = opacity == 1;
 			node.style.zoom = opaque ? "" : 1;
 
@@ -802,7 +796,7 @@ if(dojo.isIE){
 					}
 				}
 			}
-		}else if(d.isOpera || (d.isIE > 7 && !d.isQuirks)){
+		}else if(d.isOpera || (d.isIE == 8 && !d.isQuirks)){
 			// On Opera and IE 8, offsetLeft/Top includes the parent's border
 			if(p){
 				be = d._getBorderExtents(p);
@@ -854,7 +848,7 @@ if(dojo.isIE){
 		}
 		// On Opera, offsetLeft includes the parent's border
 		//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-		if(d.isOpera){ pe.l += be.l; pe.t += be.t; };
+		if(d.isOpera){ pe.l += be.l; pe.t += be.t; }
 		//>>excludeEnd("webkitMobile");
 		return {
 			l: pe.l,
@@ -1167,7 +1161,7 @@ if(dojo.isIE){
 			ret = node.getBoundingClientRect();
 			ret = { x: ret.left, y: ret.top, w: ret.right - ret.left, h: ret.bottom - ret.top };
 		//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-			if(d.isIE){
+			if(d.isIE < 9){
 				// On IE there's a 2px offset that we need to adjust for, see _getIeDocumentElementOffset()
 				var offset = d._getIeDocumentElementOffset();
 
@@ -1578,18 +1572,26 @@ if(dojo.isIE){
 	}
 	=====*/
 
-	d.empty =
-		//>>excludeStart("webkitMobile", kwArgs.webkitMobile);
-		d.isIE ?  function(node){
-			node = byId(node);
-			for(var c; c = node.lastChild;){ // intentional assignment
-				d.destroy(c);
+	function _empty(/*DomNode*/ node){
+		if(node.canHaveChildren){
+			try{
+				// fast path
+				node.innerHTML = "";
+				return;
+			}catch(e){
+				// innerHTML is readOnly (e.g. TABLE (sub)elements in quirks mode)
+				// Fall through (saves bytes)
 			}
-		} :
-		//>>excludeEnd("webkitMobile");
-		function(node){
-			byId(node).innerHTML = "";
-		};
+		}
+		// SVG/strict elements don't support innerHTML/canHaveChildren, and OBJECT/APPLET elements in quirks node have canHaveChildren=false
+		for(var c; c = node.lastChild;){ // intentional assignment
+			_destroy(c, node); // destroy is better than removeChild so TABLE subelements are removed in proper order
+		}
+	}
+
+	d.empty = function(node){
+		_empty(byId(node));
+	};
 
 	/*=====
 	dojo._toDom = function(frag, doc){
@@ -1675,7 +1677,7 @@ if(dojo.isIE){
 
 		// return multiple nodes as a document fragment
 		df = doc.createDocumentFragment();
-		while(fc = master.firstChild){ // intentional assignment
+		while((fc = master.firstChild)){ // intentional assignment
 			df.appendChild(fc);
 		}
 		return df; // DOMNode

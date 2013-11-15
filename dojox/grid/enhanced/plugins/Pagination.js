@@ -212,6 +212,7 @@ dojo.declare("dojox.grid.enhanced.plugins.Pagination", dojox.grid.enhanced._Plug
 			f.currentPageSize = this.grid.rowsPerPage = this.pageSize = size;
 			if(size >= this._maxSize){
 				this.grid.rowsPerPage = this.defaultRows;
+				this.showAll = true;
 				this.grid.usingPagination = false;
 			}else{
 				this.grid.usingPagination = true;
@@ -352,11 +353,11 @@ dojo.declare("dojox.grid.enhanced.plugins._Paginator", [dijit._Widget,dijit._Tem
 		var self = this;
 		var g = this.grid;
 		this.plugin.connect(g, "_resize", dojo.hitch(this, "_resetGridHeight"));
-		this._originalResize = dojo.hitch(g, "resize");
+		this._originalResize = g.resize;
 		g.resize = function(changeSize, resultSize){
-			self._changeSize = g._pendingChangeSize = changeSize;
-			self._resultSize = g._pendingResultSize = resultSize;
-			g.sizeChange();
+			self._changeSize = changeSize;
+			self._resultSize = resultSize;
+			self._originalResize.apply(g, arguments);
 		};
 		this._placeSelf();
 	},
@@ -465,7 +466,7 @@ dojo.declare("dojox.grid.enhanced.plugins._Paginator", [dijit._Widget,dijit._Tem
 		}
 		var padBorder = g._getPadBorder().h;
 		if(!this.plugin.gh){
-			this.plugin.gh = dojo.contentBox(g.domNode).h + 2 * padBorder;
+			this.plugin.gh = (g.domNode.clientHeight || dojo.style(g.domNode, 'height')) + 2 * padBorder;
 		}
 		if(resultSize){
 			changeSize = resultSize;
@@ -1022,7 +1023,9 @@ dojo.declare("dojox.grid.enhanced.plugins._Paginator", [dijit._Widget,dijit._Tem
 		}
 		if(dojo.trim(size.toLowerCase()) == "all"){
 			size = this._maxItemSize;
-			showAll = true;
+			this.plugin.showAll = true;
+		}else{
+			this.plugin.showAll = false;
 		}
 		this.plugin.grid.usingPagination = !this.plugin.showAll;
 		

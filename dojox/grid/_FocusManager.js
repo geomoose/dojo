@@ -16,6 +16,8 @@ dojo.declare("dojox.grid._FocusManager", null, {
 		this.headerMenu = this.grid.headerMenu;
 		this._connects.push(dojo.connect(this.grid.domNode, "onfocus", this, "doFocus"));
 		this._connects.push(dojo.connect(this.grid.domNode, "onblur", this, "doBlur"));
+		this._connects.push(dojo.connect(this.grid.domNode, "mousedown", this, "_mouseDown"));
+		this._connects.push(dojo.connect(this.grid.domNode, "mouseup", this, "_mouseUp"));
 		this._connects.push(dojo.connect(this.grid.domNode, "oncontextmenu", this, "doContextMenu"));
 		this._connects.push(dojo.connect(this.grid.lastFocusNode, "onfocus", this, "doLastNodeFocus"));
 		this._connects.push(dojo.connect(this.grid.lastFocusNode, "onblur", this, "doLastNodeBlur"));
@@ -106,7 +108,9 @@ dojo.declare("dojox.grid._FocusManager", null, {
 			try{
 				if(!this.grid.edit.isEditing()){
 					dojo.toggleClass(n, this.focusClass, true);
-					this.blurHeader();
+					if(this._colHeadNode){
+						this.blurHeader();
+					}
 					dojox.grid.util.fire(n, "focus");
 				}
 			}
@@ -205,6 +209,7 @@ dojo.declare("dojox.grid._FocusManager", null, {
 		var info = null;
 		if(this._colHeadNode){
 			var cell = this.grid.getCell(currentIdx);
+			if(!cell){ return; }
 			info = this._scrollInfo(cell, cell.getNode(0));
 		}
 		if(info && info.s && info.sr && info.n){
@@ -423,7 +428,7 @@ dojo.declare("dojox.grid._FocusManager", null, {
 					}
 					return;
 				}else if((!n || dojo.style(n, "display") === "none") && inColDelta){
-					if((col + inRowDelta) >= 0 && (col + inRowDelta) <= cc){
+					if((col + inColDelta) >= 0 && (col + inColDelta) <= cc){
 						this.move(inRowDelta, inColDelta > 0 ? ++inColDelta : --inColDelta);
 					}
 					return;
@@ -570,6 +575,10 @@ dojo.declare("dojox.grid._FocusManager", null, {
 			dojo.stopEvent(e);
 			return;
 		}
+		// don't change focus if clicking on scroller bar
+		if(this._clickFocus){
+			return;
+		}
 		// do not focus for scrolling if grid is about to blur
 		if(!this.tabbingOut){
 			this.focusHeader();
@@ -610,5 +619,14 @@ dojo.declare("dojox.grid._FocusManager", null, {
 	},
 	doColHeaderBlur: function(e){
 		dojo.toggleClass(e.target, this.focusClass, false);
+	},
+	_mouseDown: function(e){
+		// a flag indicating grid is being focused by clicking
+		this._clickFocus = dojo.some(this.grid.views.views, function(v){
+			return v.scrollboxNode === e.target;
+		});
+	},
+	_mouseUp: function(e){
+		this._clickFocus = false;
 	}
 });

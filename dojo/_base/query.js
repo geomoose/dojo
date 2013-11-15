@@ -56,17 +56,12 @@ var defineQuery= function(d){
 
 	var getDoc = function(){ return d.doc; };
 	// NOTE(alex): the spec is idiotic. CSS queries should ALWAYS be case-sensitive, but nooooooo
-	var cssCaseBug = ((d.isWebKit||d.isMozilla) && ((getDoc().compatMode) == "BackCompat"));
+	var cssCaseBug = (getDoc().compatMode) == "BackCompat";
 
 	////////////////////////////////////////////////////////////////////////
 	// Global utilities
 	////////////////////////////////////////////////////////////////////////
 
-
-	// on browsers that support the "children" collection we can avoid a lot of
-	// iteration on chaff (non-element) nodes.
-	// why.
-	var childNodesName = !!getDoc().firstChild["children"] ? "children" : "childNodes";
 
 	var specials = ">~+";
 
@@ -512,7 +507,7 @@ var defineQuery= function(d){
 	var getNodeIndex = function(node){
 		var root = node.parentNode;
 		var i = 0,
-			tret = root[childNodesName],
+			tret = root.children || root.childNodes,
 			ci = (node["_i"]||-1),
 			cl = (root["_l"]||-1);
 
@@ -657,7 +652,7 @@ var defineQuery= function(d){
 		}
 	};
 
-	var defaultGetter = (d.isIE < 9 || (dojo.isIE && dojo.isQuirks)) ? function(cond){
+	var defaultGetter = (d.isIE < 9 || d.isIE == 9 && d.isQuirks) ? function(cond){
 		var clc = cond.toLowerCase();
 		if(clc == "class"){ cond = "className"; }
 		return function(elem){
@@ -793,7 +788,7 @@ var defineQuery= function(d){
 		filterFunc = filterFunc||yesman;
 		return function(root, ret, bag){
 			// get an array of child elements, skipping text and comment nodes
-			var te, x = 0, tret = root[childNodesName];
+			var te, x = 0, tret = root.children || root.childNodes;
 			while(te = tret[x++]){
 				if(
 					_simpleNodeTest(te) &&

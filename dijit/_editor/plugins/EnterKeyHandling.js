@@ -92,17 +92,30 @@ dojo.declare("dijit._editor.plugins.EnterKeyHandling", dijit._editor._Plugin, {
 			// we need to enable customUndo, if not already enabled.
 			this.editor.customUndo = true;
 				editor.onLoadDeferred.addCallback(dojo.hitch(this,function(d){
-				this.connect(editor.document, "onkeypress", function(e){
-					if(e.charOrCode == dojo.keys.ENTER){
-						// Just do it manually.  The handleEnterKey has a shift mode that
-						// Always acts like <br>, so just use it.
-						var ne = dojo.mixin({},e);
-						ne.shiftKey = true;
-						if(!this.handleEnterKey(ne)){
-							dojo.stopEvent(e);
+					this.connect(editor.document, "onkeypress", function(e){
+						if(e.charOrCode == dojo.keys.ENTER){
+							// Just do it manually.  The handleEnterKey has a shift mode that
+							// Always acts like <br>, so just use it.
+							var ne = dojo.mixin({},e);
+							ne.shiftKey = true;
+							if(!this.handleEnterKey(ne)){
+								dojo.stopEvent(e);
+							}
 						}
+					});
+					if(dojo.isIE >= 9){
+						this.connect(editor.document.body, "onpaste", function(e){
+							setTimeout(dojo.hitch(this, function(){
+								// Use the old range/selection code to kick IE 9 into updating
+								// its range by moving it back, then forward, one 'character'.
+								var r = this.editor.document.selection.createRange();
+								r.move('character',-1);
+								r.select();
+								r.move('character',1);
+								r.select();
+							}),0);
+						});
 					}
-				});
 					return d;
 				}));
 		}else if(this.blockNodeForEnter){
@@ -129,7 +142,7 @@ dojo.declare("dijit._editor.plugins.EnterKeyHandling", dijit._editor._Plugin, {
 					var block = dojo.withGlobal(this.editor.window, 'getAncestorElement', dijit._editor.selection, [this.blockNodeForEnter]);
 					if(block){
 						block.innerHTML=this.bogusHtmlContent;
-						if(dojo.isIE){
+						if(dojo.isIE <= 9){
 							// move to the start by moving backwards one char
 							var r = this.editor.document.selection.createRange();
 							r.move('character',-1);
@@ -293,11 +306,20 @@ dojo.declare("dijit._editor.plugins.EnterKeyHandling", dijit._editor._Plugin, {
 								}
 							}));
 						}else{
+							var targetNode;
+							if(range.startOffset >= 0){
+								targetNode = rs.childNodes[range.startOffset];
+							}
 							dojo.withGlobal(this.editor.window, dojo.hitch(this, function(){
 								var brNode = doc.createElement("br");
-								rs.appendChild(brNode);
 								var endNode = doc.createTextNode('\xA0');
-								rs.appendChild(endNode);
+								if(!targetNode){
+									rs.appendChild(brNode);		
+									rs.appendChild(endNode);
+								}else{
+									dojo.place(brNode, targetNode, "before");
+									dojo.place(endNode, brNode, "after");
+								}									
 								newrange = dijit.range.create(dojo.global);
 								newrange.setStart(endNode,0);
 								newrange.setEnd(endNode, endNode.length);

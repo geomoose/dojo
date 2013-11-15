@@ -93,7 +93,7 @@ dojo.declare(
 		draggable: true,
 
 		//aria-describedby: String
-		//		Allows the user to add an aria-describedby attribute onto the dialog.   The value should
+		//		Allows the user to add an aria-describedby attribute onto the dialog. The value should
 		//		be the id of the container element of text that describes the dialog purpose (usually
 		//		the first text in the dialog).
 		//		<div dojoType="dijit.Dialog" aria-describedby="intro" .....>

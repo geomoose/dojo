@@ -467,13 +467,15 @@
 							return def;
 						},
 						function attr_reconnect(t){
-							var input = document.createElement("input");
+							var input = document.createElement("input"),
+								input2 = document.createElement("input");
 							var ctr = 0;
 							dojo.attr(input, "type", "text");
 							dojo.attr(input, "onfocus", function(e){ ctr++; });
 							dojo.attr(input, "onfocus", function(e){ ctr++; });
 							dojo.attr(input, "onfocus", function(e){ ctr++; });
 							dojo.body().appendChild(input);
+							dojo.body().appendChild(input2);
 							if(!dojo.isIE || dojo.isIE > 7){
 								// IE6/7 treats type="text" as missing, even if it was
 								// explicitly specified
@@ -482,15 +484,16 @@
 							doh.is(0, ctr);
 							var def = new doh.Deferred();
 							input.focus();
-							setTimeout(function(){
-								doh.is(1, ctr);
-								input.blur();
-								input.focus();
-								setTimeout(function(){
-									doh.is(2, ctr);
-									def.callback(true);
-								}, 10);
-							}, 10);
+							setTimeout(def.getTestErrback(function(){
+								doh.is(1, ctr, "onfocus ctr == 1");
+								input2.focus();
+								setTimeout(def.getTestErrback(function(){
+									input.focus();
+									setTimeout(def.getTestCallback(function(){
+										doh.is(2, ctr, "onfocus ctr == 2");
+									}), 10);
+								}), 10);
+							}), 10);
 							return def;
 						},
 						function attrSpecials(){
@@ -588,6 +591,10 @@
 						function testIframeDestroy10095(t){
 							var iframeWin = dojo.byId('10095_iframe').win;
 							doh.t(!iframeWin.document.getElementById('10095_textbox'), "reloaded iframe element destroyed");
+						},
+						function testGCSsvg(t){
+							var s = dojo.getComputedStyle(dojo.byId("rect1"));
+							doh.t(typeof s != "undefined", "dojo.getComputedStyle succeeded on an svg shape");
 						}
 					]
 				);
@@ -598,7 +605,7 @@
 						var id = "scrolling" + doctype + "Iframe" + scroll;
 						doh.register(id, {
 							name: "test_" + id,
-							timeout: 3000,
+							timeout: 4000,
 							runTest: function(t){
 								var d = new doh.Deferred(),
 									s = document.createElement('SPAN');
@@ -616,6 +623,48 @@
 						});
 					});
 				});
+
+				doh.register("t",
+					[
+						function emptySvg(t){
+							dojo.empty(dojo.byId("surface"));
+							doh.f(!!dojo.byId("surface").firstChild, "svg firstChild");
+						},
+						function destroySvg(t){
+							dojo.destroy(dojo.byId("surface"));
+							doh.f(!!dojo.byId("surface"), "svg byId");
+						},
+						function emptyObject(t){
+							dojo.empty(dojo.byId("objectToEmpty"));
+							doh.f(!!dojo.byId("objectToEmpty").firstChild, "object firstChild");
+						},
+						function destroyObject(t){
+							dojo.destroy(dojo.byId("objectToEmpty"));
+							doh.f(!!dojo.byId("objectToEmpty"), "object byId");
+						},
+						function destroyIframe(t){
+							dojo.destroy(dojo.byId("iframeToDestroy"));
+							doh.f(!!dojo.byId("iframeToDestroy"), "iframe byId");
+						},
+						function destroyDivNotInDOM(t){
+							var p = dojo.byId("divToRemoveFromDOM");
+							var n = dojo.byId("divToDestroy");
+							p = p.parentNode.removeChild(p);
+							doh.f(!!dojo.byId("divToRemoveFromDOM"), "div byId");
+							doh.t(!!p.firstChild, "div child 1");
+							doh.is(p.firstChild, n, "div 1st child");
+							doh.isNot(p.firstChild, p.lastChild, "div 1st child");
+							dojo.destroy(n);
+							doh.t(!!p.firstChild, "div child 2");
+							doh.isNot(p.firstChild, n, "div 2nd child");
+							doh.is(p.firstChild, p.lastChild, "div 2nd child");
+							dojo.empty(p);
+							doh.f(!!p.firstChild, "div child 3");
+							dojo.destroy(p);
+							doh.t(true, "no exception thrown");
+						}
+					]
+				);
 
 				doh.run();
 			});
@@ -850,5 +899,27 @@
 		</div>
 
 		<div id="iframeContainer"></div>
+
+		<!-- SVG element to test dojo.getComputedStyle on IE9 (#14103) -->
+		<!-- SVG element to test empty -->
+		<svg id="surface" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px"
+			><rect id="rect1" fill="rgb(255, 0, 0)" x="0" y="0" width="80" height="60" ry="0" rx="0" fill-rule="evenodd"
+		/></svg>
+
+		<!-- OBJECT element to test empty -->
+		<object width="500" height="500" id="objectToEmpty" data="data:application/x-silverlight," type="application/x-silverlight"
+			><param name="background" value="transparent"
+		/></object>
+
+		<!-- IFRAME element to test destroy -->
+		<iframe id="iframeToDestroy" src="about:blank"
+			><span></span
+		></iframe>
+
+		<!-- DIV element to test destroy of element not in the DOM -->
+		<div id="divToRemoveFromDOM"
+			><div id="divToDestroy"></div
+			><div></div
+		></div>
 	</body>
 </html>

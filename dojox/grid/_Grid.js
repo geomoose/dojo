@@ -391,14 +391,13 @@ dojo.requireLocalization("dijit", "loading");
 			// Fixes IE domNode leak
 			delete this._click;
 
-			this.edit.destroy();
-			delete this.edit;
-
-			this.views.destroyViews();
 			if(this.scroller){
 				this.scroller.destroy();
 				delete this.scroller;
 			}
+			this.edit.destroy();
+			delete this.edit;
+			this.views.destroyViews();
 			if(this.focus){
 				this.focus.destroy();
 				delete this.focus;
@@ -557,7 +556,8 @@ dojo.requireLocalization("dijit", "loading");
 		getColumnTogglingItems: function(){
 			// Summary: returns an array of dijit.CheckedMenuItem widgets that can be
 			//		added to a menu for toggling columns on and off.
-			return dojo.map(this.layout.cells, function(cell){
+			var items, checkedItems = [];
+			items = dojo.map(this.layout.cells, function(cell){
 				if(!cell.menuItems){ cell.menuItems = []; }
 
 				var self = this;
@@ -596,8 +596,15 @@ dojo.requireLocalization("dijit", "loading");
 					}
 				});
 				cell.menuItems.push(item);
+				if(!cell.hidden) {
+					checkedItems.push(item);
+				}
 				return item;
 			}, this); // dijit.CheckedMenuItem[]
+			if(checkedItems.length == 1) {
+				checkedItems[0].set('disabled', true);
+			}
+			return items;
 		},
 
 		_setHeaderMenuAttr: function(menu){
@@ -673,6 +680,7 @@ dojo.requireLocalization("dijit", "loading");
 			// save our input values, if any, and use them there when it gets
 			// called.  This saves us an extra call to _resize(), which can
 			// get kind of heavy.
+
 			this._pendingChangeSize = changeSize;
 			this._pendingResultSize = resultSize;
 			this.sizeChange();
@@ -727,7 +735,7 @@ dojo.requireLocalization("dijit", "loading");
 			if(resultSize){
 				changeSize = resultSize;
 			}
-			if(changeSize){
+			if(!this._autoHeight && changeSize){
 				dojo.marginBox(this.domNode, changeSize);
 				this.height = this.domNode.style.height;
 				delete this.fitTo;
@@ -901,7 +909,7 @@ dojo.requireLocalization("dijit", "loading");
 		// update
 		defaultUpdate: function(){
 			// note: initial update calls render and subsequently this function.
-			if(!this.domNode){return;}
+			if(!this.domNode || this.edit._noUpdate){return;}
 			if(this.updating){
 				this.invalidated.all = true;
 				return;

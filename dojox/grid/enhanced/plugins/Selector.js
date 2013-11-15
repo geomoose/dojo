@@ -978,7 +978,7 @@ dojo.declare("dojox.grid.enhanced.plugins.Selector", dojox.grid.enhanced._Plugin
 			if(type === "row"){
 				this._isUsingRowSelector = true;
 			}
-			this._startPoint[type] = this._lastEndPoint[type];
+			this._startPoint[type] = this._lastAnchorPoint[type];
 			this._highlight(type, this._startPoint[type]);
 			this._isUsingRowSelector = false;
 		}else{
@@ -1198,9 +1198,7 @@ dojo.declare("dojox.grid.enhanced.plugins.Selector", dojox.grid.enhanced._Plugin
 		// summary:
 		//		Blur the current point.
 		var f = this.grid.focus;
-		if(type == "col"){
-			f._blurHeader();
-		}else if(type == "cell"){
+		if(type == "cell"){
 			f._blurContent();
 		}
 	},

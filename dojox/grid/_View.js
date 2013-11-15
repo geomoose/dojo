@@ -69,6 +69,7 @@ dojo.require("dojo.dnd.Manager");
 			dojo.destroy(this.headerNode);
 			delete this.headerNode;
 			for(var i in this.rowNodes){
+				this._cleanupRowWidgets(this.rowNodes[i]);
 				dojo.destroy(this.rowNodes[i]);
 			}
 			this.rowNodes = {};
@@ -145,6 +146,7 @@ dojo.require("dojo.dnd.Manager");
 						if(!w._started){
 							w.startup();
 						}
+						dojo.destroy(n);
 					}else{
 						n.innerHTML = "";
 					}
@@ -184,7 +186,7 @@ dojo.require("dojo.dnd.Manager");
 
 		getColumnsWidth: function(){
 			var h = this.headerContentNode;
-			return h && h.firstChild ? h.firstChild.offsetWidth : 0; // Integer
+			return h && h.firstChild ? (h.firstChild.offsetWidth || dojo.style(h.firstChild, 'width')) : 0; // Integer
 		},
 
 		setColumnsWidth: function(width){
@@ -273,7 +275,7 @@ dojo.require("dojo.dnd.Manager");
 								this.grid.headerMenu.onCancel(true);
 							}
 							// IE reports a left click as 1, where everything else reports 0
-							if(e.button === (dojo.isIE ? 1 : 0)){
+							if(e.button === (dojo.isIE < 9 ? 1 : 0)){
 								dojo.dnd.Source.prototype.onMouseDown.call(this.source, e);
 							}
 						}
@@ -584,7 +586,7 @@ dojo.require("dojo.dnd.Manager");
 		renderRow: function(inRowIndex){
 			var rowNode = this.createRowNode(inRowIndex);
 			this.buildRow(inRowIndex, rowNode);
-			this.grid.edit.restore(this, inRowIndex);
+			//this.grid.edit.restore(this, inRowIndex);
 			return rowNode;
 		},
 
@@ -681,8 +683,12 @@ dojo.require("dojo.dnd.Manager");
 		// scrolling
 		lastTop: 0,
 		firstScroll:0,
+		_nativeScroll: false,
 
 		doscroll: function(inEvent){
+			if(dojo.isFF >= 13){
+				this._nativeScroll = true;
+			}
 			//var s = dojo.marginBox(this.headerContentNode.firstChild);
 			var isLtr = dojo._isBodyLtr();
 			if(this.firstScroll < 2){
@@ -708,12 +714,16 @@ dojo.require("dojo.dnd.Manager");
 			if(top !== this.lastTop){
 				this.grid.scrollTo(top);
 			}
+			this._nativeScroll = false;
 		},
 
 		setScrollTop: function(inTop){
 			// 'lastTop' is a semaphore to prevent feedback-loop with doScroll above
 			this.lastTop = inTop;
-			this.scrollboxNode.scrollTop = inTop;
+			if(!this._nativeScroll){
+				//fix #15487
+				this.scrollboxNode.scrollTop = inTop;
+			}
 			return this.scrollboxNode.scrollTop;
 		},
 

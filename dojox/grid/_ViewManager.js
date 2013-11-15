@@ -94,7 +94,7 @@ dojo.declare('dojox.grid._ViewManager', null, {
 	
 			//Work around odd FF3 rendering bug: #8864.
 			//A one px increase fixes FireFox 3's rounding bug for fractional font sizes.
-			if(dojo.isMoz && h){h++;}
+			if((dojo.isMoz || dojo.isIE > 8) && h){h++;}
 		}
 		for(i=0; (n=inRowNodes[i]); i++){
 			if(currHeights[i] != h){
@@ -184,12 +184,14 @@ dojo.declare('dojox.grid._ViewManager', null, {
 
 			if(!dojo._isBodyLtr()){
 				ds.right = l + 'px';
-				// fixed rtl, the scrollbar is on the right side in FF
-				if (dojo.isMoz) {
+				// fixed rtl, the scrollbar is on the right side in FF < 4
+				if (dojo.isFF < 4) {
 					hs.right = l + v.getScrollbarWidth() + 'px';
-					hs.width = parseInt(hs.width, 10) - v.getScrollbarWidth() + 'px';
 				}else{
 					hs.right = l + 'px';
+				}
+				if(!dojo.isWebKit){
+					hs.width = parseInt(hs.width, 10) - v.getScrollbarWidth() + 'px';					
 				}
 			}else{
 				ds.left = l + 'px';
